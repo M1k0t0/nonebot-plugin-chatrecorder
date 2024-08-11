@@ -1,5 +1,6 @@
 import base64
 import hashlib
+import requests
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional, Type
@@ -117,12 +118,21 @@ try:
             seg.data["file"] = f"file:///{path.resolve()}"
 
         file = seg.data.get("file", "")
-        if not file or not file.startswith("base64://"):
+        if not file:
             return
+        
+        if not file.startswith("base64://"):
+            if seg.data.get("url", ""):
+                url=seg.data.get("url", "")
+                data=requests.get(url).content
+                filename = file
+            else:
+                return
+        else:
+            data = base64.b64decode(file.replace("base64://", ""))
+            hash = hashlib.md5(data).hexdigest()
+            filename = f"{hash}.cache"
 
-        data = base64.b64decode(file.replace("base64://", ""))
-        hash = hashlib.md5(data).hexdigest()
-        filename = f"{hash}.cache"
         cache_file_path = cache_dir / filename
         cache_files = [f.name for f in cache_dir.iterdir() if f.is_file()]
         if filename in cache_files:
